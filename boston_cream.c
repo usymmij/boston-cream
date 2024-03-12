@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#define SIM					1
 // frame buffer constants
 #define BUFFER_WIDTH		1024// width is 1024 addresses
 #define UNUSED_X_PIXELS		192 
@@ -11,10 +12,10 @@
 #define TIMER_BASE			0xfffec600
 // geometry constants for the displayed torus
 #define R1					40 // radius of the inside
-#define R2					40 // radius of outside
+#define R2					80 // radius of outside
 // camera constants
-#define K1					5  // distance from camera to projection screen
-#define K2					10 // distance from camera to donut
+#define K1					100  // distance from camera to projection screen
+#define K2					150 // distance from camera to donut
 // MATHHHHHHHHHHHH
 #define PI					3.141592653
 
@@ -45,7 +46,7 @@ void clearBuffer() {
 void writeBuffer(unsigned short x,unsigned short y, char brightness) {
 	if(x >= 320 || y >= 240) return;
 	short* pixel_addr = (short*) FRAME_BUFFER_BASE;
-	pixel_addr += (x) + (BUFFER_WIDTH/2 * y);
+	pixel_addr += (x) + ((BUFFER_WIDTH>>1) * y);
 
 	short value = (short) brightness;
 	short pixel = ((value >> 3) << 11); // red uses the first 5 bits
@@ -96,13 +97,26 @@ void render() {
 	}
 
 	double x,y,z;
-	for(double theta=0; theta<2*PI; theta+= 0.05) {
-		for(double phi=0; phi<2*PI; phi += 0.05) {
+	double resolution = 0.0001;
+	// the simulator runs slow, so we render a super low resolution if running in sim
+	if(SIM) resolution = 0.5;
+	for(double phi=0; phi<2*PI; phi += resolution) {
+		for(double theta=0; theta<2*PI; theta += resolution) {
+			// generate donut
 			x = cos(phi)*(R2+(R1*cos(theta)));
-			y = R1 * sin(theta);
-			z = sin(phi)*(R2+(R1*cos(theta)));
+			z = R1 * sin(theta);
+			y = -sin(phi)*(R2+R1*cos(theta));
+
+			// projection
+			x *= K1;
+			x /= (K2 + z);
+			y *= K1;
+			y /= (K2 + z);
+
+			// center de donut
 			x += 160;
 			y += 120;
+
 			writeBuffer((short)x, (short)y, 255);
 		}
 	}
