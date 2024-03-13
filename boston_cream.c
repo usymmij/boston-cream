@@ -11,10 +11,11 @@
 #define SWITCH_BASE			0xff200040
 #define TIMER_BASE			0xfffec600
 // geometry constants for the displayed torus
+#define ROTATION_UNITS		2048
 #define R1					40 // radius of the inside
-#define R2					80 // radius of outside
+#define R2					40 // radius of outside
 // camera constants
-#define K1					100  // distance from camera to projection screen
+#define K1					30  // distance from camera to projection screen
 #define K2					150 // distance from camera to donut
 // MATHHHHHHHHHHHH
 #define PI					3.141592653
@@ -24,6 +25,13 @@
 // subtract 320 for the pixels that are actually used to get 192 unused pixels
 double rotation[] = {0,0,0};
 int* timer = (int*) TIMER_BASE;
+
+double cosine(double x) {
+	return cos(x);
+}
+double sine(double x) {
+	return sin(x);
+}
 
 /*
  * empty the frame buffer
@@ -44,7 +52,6 @@ void clearBuffer() {
  * write a pixel to the buffer
  */
 void writeBuffer(unsigned short x,unsigned short y, char brightness) {
-	if(x >= 320 || y >= 240) return;
 	short* pixel_addr = (short*) FRAME_BUFFER_BASE;
 	pixel_addr += (x) + ((BUFFER_WIDTH>>1) * y);
 
@@ -57,7 +64,7 @@ void writeBuffer(unsigned short x,unsigned short y, char brightness) {
 
 /*
  * read the buttons
- * we multiply the time since buttons were last read, by the respective button for each axis
+ * we multiply the time sinece buttons were last read, by the respective button for each axis
  * we also multiply by (1 - (2* switch)) for the following logic: 0 -> positive, 1 -> negative
  */
 void readButtons() {
@@ -72,21 +79,22 @@ void readButtons() {
 	double y = ((*button_addr & 2) * (2 - 2*(*switch_addr & 2))) >> 1;
 	double z = ((*button_addr & 4) * (4 - 2*(*switch_addr & 4))) >> 2;
 
-	// rougly 1 1.5s of button holding is pi rotation
-	rotation[0] += time * x / 1000.0;
-	if(rotation[0] > 2)	rotation[0] -= 2.0;
+	// rotations in pi radians
+	rotation[0] += time * x / ROTATION_UNITS;
+	if(rotation[0] > 1)	rotation[0] -= 2.0;
 
-	rotation[1] += time * y / 1000.0;
-	if(rotation[1] > 2)	rotation[1] -= 2.0;
+	rotation[1] += time * y / ROTATION_UNITS;
+	if(rotation[1] > 1)	rotation[1] -= 2.0;
 
-	rotation[2] += time * z / 1000.0;
-	if(rotation[2] > 2)	rotation[2] -= 2.0;
+	rotation[2] += time * z / ROTATION_UNITS;
+	if(rotation[2] > 1)	rotation[2] -= 2.0;
 	
 	// reset timer 
 	*(timer+1) = *(timer);
 }
 
 void render() {
+	/**
 	char donutFrame[320][240];
 	float donut_z[320][240];
 	for(int i=0;i<320;i++) {
@@ -95,17 +103,43 @@ void render() {
 			donut_z[i][j] = 0;
 		}
 	}
+	**/
 
 	double x,y,z;
 	double resolution = 0.0001;
 	// the simulator runs slow, so we render a super low resolution if running in sim
 	if(SIM) resolution = 0.5;
+	clearBuffer();
+
+	double m,s,r,i,j,k,minv, psi;
+	// rotation quaternion magnitude
+	m = rotation[0] * rotation[0];
+	m += rotation[1] * rotation[1];
+	m += rotation[2] * rotation[2];
+	if(m != 0) {
+		s = 1/m;
+		m = sqrt(m);
+		minv = 1/m;
+		psi = PI * m/2;
+		r = cosine(psi);
+		i = sine(psi) * rotation[0] * minv;
+		j = sine(psi) * rotation[1] * minv;
+		k = sine(psi) * rotation[2] * minv;
+	}
+
 	for(double phi=0; phi<2*PI; phi += resolution) {
 		for(double theta=0; theta<2*PI; theta += resolution) {
 			// generate donut
-			x = cos(phi)*(R2+(R1*cos(theta)));
-			z = R1 * sin(theta);
-			y = -sin(phi)*(R2+R1*cos(theta));
+			x = cosine(phi)*(R2+(R1*cosine(theta)));
+			y = -sine(phi)*(R2+R1*cosine(theta));
+			z = R1 * sine(theta);
+
+			if(m != 0) {
+				// calculate the rotation using the quaternion
+				x = (x*(1-(2*((j*j)+(k*k))*s))) + (y*(2*((i*j)+(k*r))*s)) + (z*(2*((i*k)-(j*r))*s));
+				y = (x*(2*((i*j)-(k*r))*s)) + (y*(1-(2*((i*i)+(k*k))*s))) + (z*(2*((j*k)+(i*r))*s));
+				z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
+			}
 
 			// projection
 			x *= K1;
@@ -117,7 +151,7 @@ void render() {
 			x += 160;
 			y += 120;
 
-			writeBuffer((short)x, (short)y, 255);
+			if(x < 320 && y < 240 && x > 0 && y > 0 && z > 0) writeBuffer((short)x, (short)y, 255);
 		}
 	}
 }

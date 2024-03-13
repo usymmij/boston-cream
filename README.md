@@ -1,5 +1,9 @@
 # ECE 3375 project 
-James Su
+James Su, Shiv Patel
+
+## Todo
+- taylor series sine and cosine
+
 
 # Table of Contents
 [[toc]]
