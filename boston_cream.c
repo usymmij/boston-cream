@@ -16,7 +16,7 @@
 #define R2					40 // radius of outside
 // camera constants
 #define K1					30  // distance from camera to projection screen
-#define K2					150 // distance from camera to donut
+#define K2					50 // distance from camera to donut
 // MATHHHHHHHHHHHH
 #define PI					3.141592653
 
@@ -136,9 +136,9 @@ void render() {
 
 			if(m != 0) {
 				// calculate the rotation using the quaternion
-				x = (x*(1-(2*((j*j)+(k*k))*s))) + (y*(2*((i*j)+(k*r))*s)) + (z*(2*((i*k)-(j*r))*s));
-				y = (x*(2*((i*j)-(k*r))*s)) + (y*(1-(2*((i*i)+(k*k))*s))) + (z*(2*((j*k)+(i*r))*s));
-				z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
+				//x = (x*(1-(2*((j*j)+(k*k))*s))) + (y*(2*((i*j)+(k*r))*s)) + (z*(2*((i*k)-(j*r))*s));
+				//y = (x*(2*((i*j)-(k*r))*s)) + (y*(1-(2*((i*i)+(k*k))*s))) + (z*(2*((j*k)+(i*r))*s));
+				//z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
 			}
 
 			// projection
