@@ -16,12 +16,12 @@ output: pdf_document
 > In this project, we'll build a simple 3D graphics engine on the DE10-SoC. It will show a 3D torus on a monitor using the VGA port, and provide controls to rotate the torus. 
 
 ### Effect on the user
-> 3D rendering is a very generalizable technique with varying applications.
-Offloading graphics can allow the main processor to handle other tasks, increasing the efficiency of the device as a whole. Hardware architectures that excel at parallel tasks are also conveniently applicable in other computational tasks like machine learning, scientific computing, data mining and more. 
+> 3D rendering lends itself easily to matrix calculations, which is a generalized task with many applications.
+Offloading graphics can allow the main processor to handle other tasks, increasing the efficiency of the device as a whole. 
+> Hardware architectures that excel at parallel tasks are also conveniently applicable in other computational tasks like machine learning, scientific computing, data mining and more. 
 
 > Real graphics cards provide this through CUDA and ROCm software tools.
-
-> Specialized hardware is also more effecient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and effect the planet.
+> Specialized hardware is also more efficient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and overall power requirements.
 
 # Functional Description
 
@@ -38,4 +38,22 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > VGA is a digital standard, and so are the two most common display protocols in modern displays (DisplayPort and HDMI)
 > Since it is on the DE10-SOC, our output IC will be a 24-bit VGA DAC.
 
-# Software
+# Initial Software Design
+
+### Initialization
+> On initialization, we orient the frame to be rendered in the z direction, with at a further z distance pointing towards the origin.
+> The torus is initialized in the X-Y plane, such that we could rotate a circle in the X-Z plane and rotate it around the Z axis to form the torus.
+> To avoid having to clear the hardware frame buffer manually, we maintain a separate engine frame buffer.
+> The engine frame buffer is directly written to by the renderer, which is cleared at the start of each cycle.
+> At the end of the cycle, the engine frame buffer is copied to the hardware frame buffer.
+
+### Inputs
+> The buttons and switches are sampled once per render cycle, and the hardware timer is used to find the time passed since the last sample. This allows direct control of the rotation rate, so that it can be a constant value. 
+
+### Rendering
+> Since there is only one rendered object, it will be pretty optimized. We simply trace points on the surface on the torus, and project them onto the viewplane.
+> A z-buffer is maintained, such that pixels that overwrite a previous pixel are only written if they are closer to the viewer than the previous point.
+> The render cycle loops indefinitely, as quickly as it can to output the best framerate possible.
+> The cycle will likely spend most of the time writing projecting points onto the frame and calculating the z-buffer. 
+
+# Prototyping Plan
