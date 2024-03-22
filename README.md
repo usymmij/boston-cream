@@ -1,15 +1,17 @@
+---
+title: "donuts!"
+subtitle: "ECE 3375 Final Project, 2024 "
+author: James Su, Shiv Patel, Khalid Zabalawi
+date: March 22, 2024
+geometry: margin=1in
+output: pdf_document
+---
+
 # ECE 3375 project 
-James Su, Shiv Patel
-
-## Todo
-- taylor series sine and cosine
-- frame buffer instead of the stupid clear screen im doing rn lol
-
-
-# Table of Contents
-[[toc]]
+James Su, Shiv Patel, Khalid Zabalawi
 
 # Problem Definition
+
 > 3D rendering is a common modern computing task, relevant in many different applications from animation to engineering. 
 Graphics rendering is often assigned to a separate, specialized processor modern computers with a more parallelizable architecture. 
 
