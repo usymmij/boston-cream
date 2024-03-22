@@ -29,13 +29,13 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
 > The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time using the VGA controller.
 
-> 
-
 # Input/Output
-- for input, we use the buttons and switches, and timer
-  - pressed buttons rotate the object, and the switches control the direction
-  - the timer is used to track the elapsed time since the last update
-    - this way, we get more precise control over the rotation speed
+> The buttons, switches, and timer are the inputs for this device.
+> Held buttons rotate the object, and the switches control the direction while the timer is used to check the duration held for an appropriate rotation speed.
+> These inputs manipulate the internal torus state, which is converted to an ouput: a frame buffer. 
+> This frame buffer is written to the hardware VGA controller, which displays the updated frame buffer to the VGA port
 
-> Although the DE10-SoC could emulate GPU hardware with the FPGA, we'll stick to using the CPU for this project. 
+> VGA is a digital standard, and so are the two most common display protocols in modern displays (DisplayPort and HDMI)
+> Since it is on the DE10-SOC, our output IC will be a 24-bit VGA DAC.
 
+# Software
