@@ -7,32 +7,29 @@ geometry: margin=1in
 output: pdf_document
 ---
 
-# ECE 3375 project 
-James Su, Shiv Patel, Khalid Zabalawi
-
 # Problem Definition
 
-> 3D rendering is a common modern computing task, relevant in many different applications from animation to engineering. 
-Graphics rendering is often assigned to a separate, specialized processor modern computers with a more parallelizable architecture. 
+> 3D rendering is a common modern computing task, relevant in many different applications from animation to engineering. It consumes a significant number of clock cycles / computing time on generalized hardware, so it is often desirable to offload the task to a secondary, specialized microprocessor.
 
 > Graphics cards are microcontrollers that are purpose built to handle parallelizable tasks, including graphics rendering. It contains its own microprocessor, the GPU, as well as its own memory and I/O.
 
-> In this project, we'll build a simple 3D graphics renderer on the DE10-SoC. It will show a 3D torus on a monitor using the VGA port, and provide controls to rotate the torus.
+> In this project, we'll build a simple 3D graphics engine on the DE10-SoC. It will show a 3D torus on a monitor using the VGA port, and provide controls to rotate the torus. 
 
 ### Effect on the user
 > 3D rendering is a very generalizable technique with varying applications.
 Offloading graphics can allow the main processor to handle other tasks, increasing the efficiency of the device as a whole. Hardware architectures that excel at parallel tasks are also conveniently applicable in other computational tasks like machine learning, scientific computing, data mining and more. 
+
 > Real graphics cards provide this through CUDA and ROCm software tools.
+
+> Specialized hardware is also more effecient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and effect the planet.
 
 # Functional Description
 
 > When the program starts, a connected monitor will show a rendered torus.
+> Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
+> The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time using the VGA controller.
 
-> Buttons 0-2 will correspond to rotations in the X, Y, and Z axis, and switches 0-2 will control the direction of these rotations respectively.
-
-> As far as input goes, it's relatively simple. However, the output space is much larger and the system must project the 3D object onto a 2D plane to form a z-buffer.
-
-> As far as making a GPU goes, this is more like writing a GPU *driver*. The general use ARM CPU is capable of doing anything a CUDA core can, but it's a lot slower for certain tasks (and vice versa).
+> 
 
 # Input/Output
 - for input, we use the buttons and switches, and timer
