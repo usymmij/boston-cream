@@ -28,11 +28,6 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > When the program starts, a connected monitor will show a rendered torus.
 > The user has the option to interact with the system using buttons and switches.Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
 > The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time. This operation is done using the VGA controller. 
-("We can talk a little more about how this interaction is done, code and such?")
-
-> ("Can these questions be answered?")
-> What quantities does it monitor? How often?
-> What stimuli does it manage? How often?
 
 # Input/Output
 > Currently, our output requirement is to rotate the object, control the direction of the object, and measure rotation speed.
@@ -62,3 +57,15 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > The cycle will likely spend most of the time writing projecting points onto the frame and calculating the z-buffer. 
 
 # Prototyping Plan
+
+For prototyping on our machines, we write the engine in a similar manner in Python and run that locally with `python honey-cruller`. This allows us to validate our work before implementing them on the DE10-SoC hardware. To run `honey-cruller`, install `numpy` and `cv2` packages and then run with the `python honey-cruller.py` command. 
+
+This will bring up a frame that looks like this:
+
+![alt text](initial_frame.png)
+
+To rotate / simulate the buttons, the `WASD` keys are used. Here is how the donut looks like rotated:
+
+![alt text](front_view.png)
+
+To stop the program we use `ctrl c`. 
