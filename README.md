@@ -24,7 +24,6 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > Specialized hardware is also more efficient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and overall power requirements.
 
 # Functional Description
-> ("Adding pictures would be very effective")
 > When the program starts, a connected monitor will show a rendered torus.
 > The user has the option to interact with the system using buttons and switches.Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
 > The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time. This operation is done using the VGA controller. 
