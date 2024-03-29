@@ -19,6 +19,8 @@
 #define K2					50 // distance from camera to donut
 // MATHHHHHHHHHHHH
 #define PI					3.141592653
+#define HPI					1.570796327
+#define TAU					6.283185306
 
 
 // each row in the buffer is 1024 addrs, or 512 pixels
@@ -26,15 +28,50 @@
 double rotation[] = {0,0,0};
 int* timer = (int*) TIMER_BASE;
 
-double cosine(double x) {
-	return cos(x);
+// little mod function for doubles: just used in the trig function replacements
+double dmod(double x, double y) {
+    return x - (int)(x/y) * y;
 }
+/**
+ * use taylor series to approximate sine and cosine
+ * math.h is more accurate but the intel fpga monitor program wont let me add the -lm flag >:(
+ *
+ * in overall, it is roughly off by no more than 0.005, the worse section being when the true value is near 1 or -1
+ * (i love desmos)
+ */
 double sine(double x) {
-	return sin(x);
+	x = dmod(x, TAU);
+	if(x < 0) x = TAU + x; // restrict to positive range 
+
+	// our accurate range is -pi/2 -> pi/2, and our input domain is 0 -> tau [2pi]
+	// to throw everything in this range, we "bounce" off of pi/2 when x is greater
+	// (think of an arrow rotating from 0 -> pi/2, then bouncing counterclockwise down to -pi/2)
+	// if x is greater than or equal to 
+	if(x > 1.5*PI) {
+		x = x - TAU; // if x is in the last quadrant just subtract 2pi so we stay in range 
+	} else if(x > HPI) {
+		// set x to (distance from x to hpi) less than hpi, sort of "bouncing" it back
+		// (pi/2) - (x - (pi/2))
+		// simplifies down to 
+		// pi - x
+		// intuitive visualization in desmos if you chart (sin x), (sin(pi-x)), and (p-x)
+		x = PI - x; 
+	}
+
+	// janky taylor series
+	x = x - (x*x*x / 6) + ((x*x*x*x*x) / 120);
+	return x;
+}
+
+double cosine(double x) {
+	return sine(x - HPI);
 }
 
 /*
- * empty the frame buffer
+ * empty the hardware frame buffer
+ *
+ * for startup and debug only, use the engine frame buffer for actual proj pls
+ *
  */
 void clearBuffer() {
 	short* pixel_addr = (short*) FRAME_BUFFER_BASE;
@@ -50,8 +87,9 @@ void clearBuffer() {
 
 /*
  * write a pixel to the buffer
+ * debug only
  */
-void writeBuffer(unsigned short x,unsigned short y, char brightness) {
+void writeBufferPixel(unsigned short x,unsigned short y, char brightness) {
 	short* pixel_addr = (short*) FRAME_BUFFER_BASE;
 	pixel_addr += (x) + ((BUFFER_WIDTH>>1) * y);
 
@@ -60,6 +98,28 @@ void writeBuffer(unsigned short x,unsigned short y, char brightness) {
 	pixel |= (value >> 2) << 5; // green uses 6 bits
 	pixel |= value >> 3; // blue uses last 5 bits
 	*pixel_addr = pixel;
+}
+
+/**
+ * write characters to buffer
+ * grayscale cuz i suck
+ */
+void writeBuffer(char buffer[][320]) {
+	short* pixel_addr = (short*) FRAME_BUFFER_BASE;
+	for(int i=0; i < 240; i++) {
+		for(int j=0; j < 320; j++) {
+
+			short value = (short) buffer[i][j];
+			
+			short pixel = ((value >> 3) << 11); // red uses the first 5 bits
+			pixel |= (value >> 2) << 5; // green uses 6 bits
+			pixel |= value >> 3; // blue uses last 5 bits
+
+			*pixel_addr = pixel;
+			pixel_addr += 1;
+		}
+		pixel_addr += UNUSED_X_PIXELS;
+	}
 }
 
 /*
@@ -81,35 +141,33 @@ void readButtons() {
 
 	// rotations in radians
 	rotation[0] += time * x / ROTATION_UNITS;
-	if(rotation[0] > PI)	rotation[0] -= 2.0 * PI;
+	if(rotation[0] > PI)	rotation[0] -= TAU;
 
 	rotation[1] += time * y / ROTATION_UNITS;
-	if(rotation[1] > PI)	rotation[1] -= 2.0 * PI;
+	if(rotation[1] > PI)	rotation[1] -= TAU;
 
 	rotation[2] += time * z / ROTATION_UNITS;
-	if(rotation[2] > PI)	rotation[2] -= 2.0 * PI;
+	if(rotation[2] > PI)	rotation[2] -= TAU;
 	
 	// reset timer 
 	*(timer+1) = *(timer);
 }
 
 void render() {
-	/**
-	char donutFrame[320][240];
-	float donut_z[320][240];
-	for(int i=0;i<320;i++) {
-		for(int j=0;j<240;j++){
+	char donutFrame[240][320];
+	//float donut_z[320][240];
+	for(int i=0;i<240;i++) {
+		for(int j=0;j<320;j++){
 			donutFrame[i][j] = 0;
-			donut_z[i][j] = 0;
+	//		donut_z[i][j] = 0;
 		}
 	}
-	**/
 
 	double x,y,z;
 	double resolution = 0.0001;
 	// the simulator runs slow, so we render a super low resolution if running in sim
 	if(SIM) resolution = 0.5;
-	clearBuffer();
+	//clearBuffer();
 
 	//double m,s,r,i,j,k,minv, psi;
 	// rotation quaternion magnitude
@@ -127,8 +185,8 @@ void render() {
 	//	k = sine(psi) * rotation[2] * minv;
 	//}
 
-	for(double phi=0; phi<2*PI; phi += resolution) {
-		for(double theta=0; theta<2*PI; theta += resolution) {
+	for(double phi=0; phi<TAU; phi += resolution) {
+		for(double theta=0; theta<TAU; theta += resolution) {
 			// generate donut
 			x = cosine(phi)*(R2+(R1*cosine(theta)));
 			y = -sine(phi)*(R2+(R1*cosine(theta)));
@@ -156,9 +214,14 @@ void render() {
 			x += 160;
 			y += 120;
 
-			if(x < 320 && y < 240 && x > 0 && y > 0) writeBuffer((short)x, (short)y, 255);
+			// pixels are integers!
+			int xPixel = (int)x;
+			int yPixel = (int)y;
+
+			if(x < 320 && y < 240 && x >= 0 && y >= 0) donutFrame[yPixel][xPixel] = 255;
 		}
 	}
+	writeBuffer(donutFrame);
 }
 	
 /*
