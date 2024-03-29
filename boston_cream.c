@@ -111,7 +111,7 @@ void render() {
 	if(SIM) resolution = 0.5;
 	clearBuffer();
 
-	double m,s,r,i,j,k,minv, psi;
+	//double m,s,r,i,j,k,minv, psi;
 	// rotation quaternion magnitude
 	//m = rotation[0] * rotation[0];
 	//m += rotation[1] * rotation[1];
@@ -134,16 +134,17 @@ void render() {
 			y = -sine(phi)*(R2+(R1*cosine(theta)));
 			z = R1 * sine(theta);
 
-			if(m != 0) {
+			//if(m != 0) {
 				// calculate the rotation using the quaternion
 				//x = (x*(1-(2*((j*j)+(k*k))*s))) + (y*(2*((i*j)+(k*r))*s)) + (z*(2*((i*k)-(j*r))*s));
 				//y = (x*(2*((i*j)-(k*r))*s)) + (y*(1-(2*((i*i)+(k*k))*s))) + (z*(2*((j*k)+(i*r))*s));
 				//z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
-				x = (R2+(R1*cosine(theta))) * ((cos(rotation[1]) * cos(phi)) + (sine(rotation[0])* sine(rotation[1])*sine(phi))) - (R1 * cos(rotation[0]) * cos(rotation[1]) * sine(theta))
-				y = (R2+(R1*cosine(theta))) * ((sine(rotation[1]) * cos(phi))-(cosine(rotation[1])*sine(rotation[0])*sine(phi))) + (R1 * cos(rotation[0]) * cos(rotation[1]) * sine(theta))
-				z = (cosine(rotation[0]) * (R2 + (R1 * cosine(theta)) * sine(phi) ) + (R1 * sine(A) * sine(phi))
+			//}
+			// rotations with euler
+			x = (R2+(R1*cosine(theta))) * ((cosine(rotation[1]) * cosine(phi)) + (sine(rotation[0])* sine(rotation[1])*sine(phi))) - (R1 * cosine(rotation[0]) * cosine(rotation[1]) * sine(theta));
+			y = (R2+(R1*cosine(theta))) * ((sine(rotation[1]) * cosine(phi))-(cosine(rotation[1])*sine(rotation[0])*sine(phi))) + (R1 * cosine(rotation[0]) * cosine(rotation[1]) * sine(theta));
+			z = (cosine(rotation[0]) * (R2 + (R1 * cosine(theta)) * sine(phi))) + (R1 * sine(rotation[0]) * sine(phi));
 
-			}
 
 			// projection
 			x *= K1;
@@ -155,7 +156,7 @@ void render() {
 			x += 160;
 			y += 120;
 
-			if(x < 320 && y < 240 && x > 0 && y > 0 && z > 0) writeBuffer((short)x, (short)y, 255);
+			if(x < 320 && y < 240 && x > 0 && y > 0) writeBuffer((short)x, (short)y, 255);
 		}
 	}
 }
