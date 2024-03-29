@@ -79,15 +79,15 @@ void readButtons() {
 	double y = ((*button_addr & 2) * (2 - 2*(*switch_addr & 2))) >> 1;
 	double z = ((*button_addr & 4) * (4 - 2*(*switch_addr & 4))) >> 2;
 
-	// rotations in pi radians
+	// rotations in radians
 	rotation[0] += time * x / ROTATION_UNITS;
-	if(rotation[0] > 1)	rotation[0] -= 2.0;
+	if(rotation[0] > PI)	rotation[0] -= 2.0 * PI;
 
 	rotation[1] += time * y / ROTATION_UNITS;
-	if(rotation[1] > 1)	rotation[1] -= 2.0;
+	if(rotation[1] > PI)	rotation[1] -= 2.0 * PI;
 
 	rotation[2] += time * z / ROTATION_UNITS;
-	if(rotation[2] > 1)	rotation[2] -= 2.0;
+	if(rotation[2] > PI)	rotation[2] -= 2.0 * PI;
 	
 	// reset timer 
 	*(timer+1) = *(timer);
@@ -113,25 +113,25 @@ void render() {
 
 	double m,s,r,i,j,k,minv, psi;
 	// rotation quaternion magnitude
-	m = rotation[0] * rotation[0];
-	m += rotation[1] * rotation[1];
-	m += rotation[2] * rotation[2];
-	if(m != 0) {
-		s = 1/m;
-		m = sqrt(m);
-		minv = 1/m;
-		psi = PI * m/2;
-		r = cosine(psi);
-		i = sine(psi) * rotation[0] * minv;
-		j = sine(psi) * rotation[1] * minv;
-		k = sine(psi) * rotation[2] * minv;
-	}
+	//m = rotation[0] * rotation[0];
+	//m += rotation[1] * rotation[1];
+	//m += rotation[2] * rotation[2];
+	//if(m != 0) {
+	//	s = 1/m;
+	//	m = sqrt(m);
+	//	minv = 1/m;
+	//	psi = PI * m/2;
+	//	r = cosine(psi);
+	//	i = sine(psi) * rotation[0] * minv;
+	//	j = sine(psi) * rotation[1] * minv;
+	//	k = sine(psi) * rotation[2] * minv;
+	//}
 
 	for(double phi=0; phi<2*PI; phi += resolution) {
 		for(double theta=0; theta<2*PI; theta += resolution) {
 			// generate donut
 			x = cosine(phi)*(R2+(R1*cosine(theta)));
-			y = -sine(phi)*(R2+R1*cosine(theta));
+			y = -sine(phi)*(R2+(R1*cosine(theta)));
 			z = R1 * sine(theta);
 
 			if(m != 0) {
@@ -139,6 +139,10 @@ void render() {
 				//x = (x*(1-(2*((j*j)+(k*k))*s))) + (y*(2*((i*j)+(k*r))*s)) + (z*(2*((i*k)-(j*r))*s));
 				//y = (x*(2*((i*j)-(k*r))*s)) + (y*(1-(2*((i*i)+(k*k))*s))) + (z*(2*((j*k)+(i*r))*s));
 				//z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
+				x = (R2+(R1*cosine(theta))) * ((cos(rotation[1]) * cos(phi)) + (sine(rotation[0])* sine(rotation[1])*sine(phi))) - (R1 * cos(rotation[0]) * cos(rotation[1]) * sine(theta))
+				y = (R2+(R1*cosine(theta))) * ((sine(rotation[1]) * cos(phi))-(cosine(rotation[1])*sine(rotation[0])*sine(phi))) + (R1 * cos(rotation[0]) * cos(rotation[1]) * sine(theta))
+				z = (cosine(rotation[0]) * (R2 + (R1 * cosine(theta)) * sine(phi) ) + (R1 * sine(A) * sine(phi))
+
 			}
 
 			// projection
