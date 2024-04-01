@@ -12,11 +12,11 @@
 #define TIMER_BASE			0xfffec600
 // geometry constants for the displayed torus
 #define ROTATION_UNITS		2048
-#define R1					40 // radius of the inside
-#define R2					40 // radius of outside
+#define R1					1 // radius of the inside
+#define R2					2 // radius of outside
 // camera constants
-#define K1					30  // distance from camera to projection screen
-#define K2					50 // distance from camera to donut
+#define K1					320*5*3/(8*(R1+R2))  // distance from camera to projection screen
+#define K2					8 // distance from camera to donut
 // MATHHHHHHHHHHHH
 #define PI					3.141592653
 #define HPI					1.570796327
@@ -137,17 +137,20 @@ void readButtons() {
 	// i cooould case to double later for memory efficiency but it doesn't reaally matter here
 	double x = (*button_addr & 1) * (1 - 2*(*switch_addr & 1));
 	double y = ((*button_addr & 2) * (2 - 2*(*switch_addr & 2))) >> 1;
-	double z = ((*button_addr & 4) * (4 - 2*(*switch_addr & 4))) >> 2;
+	double z = -((*button_addr & 4) * (4 - 2*(*switch_addr & 4))) >> 2;
 
 	// rotations in radians
 	rotation[0] += time * x / ROTATION_UNITS;
-	if(rotation[0] > PI)	rotation[0] -= TAU;
+	if(rotation[0] > TAU)	rotation[0] -= TAU;
+	else if(rotation[0] < 0) rotation[0] += TAU;
 
 	rotation[1] += time * y / ROTATION_UNITS;
-	if(rotation[1] > PI)	rotation[1] -= TAU;
+	if(rotation[1] > TAU)	rotation[1] -= TAU;
+	else if(rotation[1] < 0) rotation[1] += TAU;
 
 	rotation[2] += time * z / ROTATION_UNITS;
-	if(rotation[2] > PI)	rotation[2] -= TAU;
+	if(rotation[2] > TAU)	rotation[2] -= TAU;
+
 	
 	// reset timer 
 	*(timer+1) = *(timer);
@@ -155,11 +158,11 @@ void readButtons() {
 
 void render() {
 	char donutFrame[240][320];
-	//float donut_z[320][240];
+	float donut_z[320][240];
 	for(int i=0;i<240;i++) {
 		for(int j=0;j<320;j++){
 			donutFrame[i][j] = 0;
-	//		donut_z[i][j] = 0;
+			donut_z[i][j] = 0;
 		}
 	}
 
@@ -185,12 +188,12 @@ void render() {
 	//	k = sine(psi) * rotation[2] * minv;
 	//}
 
-	for(double phi=0; phi<TAU; phi += resolution) {
-		for(double theta=0; theta<TAU; theta += resolution) {
+	for(double phi=-PI; phi<PI; phi += resolution) {
+		for(double theta=-PI; theta<PI; theta += resolution) {
 			// generate donut
-			x = cosine(phi)*(R2+(R1*cosine(theta)));
-			y = -sine(phi)*(R2+(R1*cosine(theta)));
-			z = R1 * sine(theta);
+			//x = cosine(phi)*(R2+(R1*cosine(theta)));
+			//y = -sine(phi)*(R2+(R1*cosine(theta)));
+			//z = R1 * sine(theta);
 
 			//if(m != 0) {
 				// calculate the rotation using the quaternion
@@ -199,16 +202,24 @@ void render() {
 				//z = (x*(2*((i*k)+(j*r))*s)) + (y*(2*((j*k)-(i*r))*s)) + (z*(1-(2*((i*i)+(j*j))*s)));
 			//}
 			// rotations with euler
-			x = (R2+(R1*cosine(theta))) * ((cosine(rotation[1]) * cosine(phi)) + (sine(rotation[0])* sine(rotation[1])*sine(phi))) - (R1 * cosine(rotation[0]) * cosine(rotation[1]) * sine(theta));
-			y = (R2+(R1*cosine(theta))) * ((sine(rotation[1]) * cosine(phi))-(cosine(rotation[1])*sine(rotation[0])*sine(phi))) + (R1 * cosine(rotation[0]) * cosine(rotation[1]) * sine(theta));
-			z = (cosine(rotation[0]) * (R2 + (R1 * cosine(theta)) * sine(phi))) + (R1 * sine(rotation[0]) * sine(phi));
+			double costheta = cosine(theta);
+			double sintheta = sine(theta);
+			double cosphi = cosine(phi);
+			double sinphi = sine(phi);
+			double cosA = cosine(rotation[0]);
+			double sinA = sine(rotation[0]);
+			double cosB = cosine(rotation[1]);
+			double sinB = sine(rotation[1]);
+
+			x = (R2+(R1*costheta)) * ((cosB * cosphi) + (sinA*sinB*sinphi)) - (R1 * cosA * sinB * sintheta);
+			y = (R2+(R1*costheta)) * ((sinB * cosphi) - (cosB*sinA*sinphi)) + (R1 * cosA * cosB * sintheta);
+			z = (cosA * (R2 + (R1 * costheta) * sinphi)) + (R1 * sinA * sintheta);
+			z += 2;
 
 
 			// projection
-			x *= K1;
-			x /= (K2 + z);
-			y *= K1;
-			y /= (K2 + z);
+			x *= K1 / (K2 + z);
+			y *= K1 / (K2 + z);
 
 			// center de donut
 			x += 160;
@@ -218,7 +229,14 @@ void render() {
 			int xPixel = (int)x;
 			int yPixel = (int)y;
 
-			if(x < 320 && y < 240 && x >= 0 && y >= 0) donutFrame[yPixel][xPixel] = 255;
+			double oz = 1 / z;
+			if(x < 320 && y < 240 && x >= 0 && y >= 0) {
+				if(oz > donut_z[yPixel][xPixel]) {
+					donut_z[yPixel][xPixel] = oz;
+					donutFrame[yPixel][xPixel] = 255;
+				}
+			}
+
 		}
 	}
 	writeBuffer(donutFrame);
