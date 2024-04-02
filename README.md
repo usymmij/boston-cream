@@ -24,17 +24,16 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > Specialized hardware is also more efficient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and overall power requirements.
 
 # Functional Description
-
 > When the program starts, a connected monitor will show a rendered torus.
-> Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
-> The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time using the VGA controller.
+> The user has the option to interact with the system using buttons and switches.Buttons 0, 1, and 2 will correspond to rotations in the X, Y, and Z axis, and switches 0, 1, and 2 will control the direction of these rotations respectively.
+> The 3D torus, in its rotated orientation is rendered to a 2D frame buffer that is then displayed on the connected monitor in real time. This operation is done using the VGA controller. 
 
 # Input/Output
-> The buttons, switches, and timer are the inputs for this device.
-> Held buttons rotate the object, and the switches control the direction while the timer is used to check the duration held for an appropriate rotation speed.
+> Currently, our output requirement is to rotate the object, control the direction of the object, and measure rotation speed.
+> To accomplish this, we assigned our inputs to be buttons(actuator), switches(actuator), and a timer(sensor) for this device.
+> Buttons are held to rotate the object, the switches control the direction, and the timer checks the button hold for an appropriate rotation speed.
 > These inputs manipulate the internal torus state, which is converted to an ouput: a frame buffer. 
 > This frame buffer is written to the hardware VGA controller, which displays the updated frame buffer to the VGA port
-
 > VGA is a digital standard, and so are the two most common display protocols in modern displays (DisplayPort and HDMI)
 > Since it is on the DE10-SOC, our output IC will be a 24-bit VGA DAC.
 
@@ -57,3 +56,15 @@ Offloading graphics can allow the main processor to handle other tasks, increasi
 > The cycle will likely spend most of the time writing projecting points onto the frame and calculating the z-buffer. 
 
 # Prototyping Plan
+
+For prototyping on our machines, we write the engine in a similar manner in Python and run that locally with `python honey-cruller`. This allows us to validate our work before implementing them on the DE10-SoC hardware. To run `honey-cruller`, install `numpy` and `cv2` packages and then run with the `python honey-cruller.py` command. 
+
+This will bring up a windows application frame that has a donut (refer to Figure 1). 
+
+![Startup frame for honey-cruller](initial_frame.png)
+
+To rotate / simulate the buttons, the `WASD` keys are used. Here is how the donut looks like rotated: (refer to Figure 2).
+
+![Front view of donut after moving it](front_view.png)
+
+To stop the program we use `ctrl c`. 
