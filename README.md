@@ -18,9 +18,9 @@ output: pdf_document
 ### Effect on the user
 > 3D rendering lends itself easily to matrix calculations, which is a generalized task with many applications.
 > Offloading graphics can allow the main processor to handle other tasks, increasing the efficiency of the device as a whole. 
-> Hardware architectures that excel at parallel tasks are also conveniently applicable in other computational tasks like machine learning, scientific computing, data mining and more. 
+> Hardware architectures that excel at parallel tasks are also conveniently applicable in other computational tasks like machine learning, scientific computing, cryptocurrency and more. 
 
-> Real graphics cards provide this through CUDA and ROCm software tools.
+> Real graphics cards provide parallel computing through CUDA and ROCm software tools.
 > Specialized hardware is also more efficient than general purpose hardware, and can be optimized for lower resource settings. This allows the users to decrease and limit their power consumption and overall power requirements.
 
 # Functional Description
@@ -54,24 +54,75 @@ output: pdf_document
 > At the end of the cycle, the engine frame buffer is copied to the hardware frame buffer.
 
 ### Inputs
-> The buttons and switches are sampled once per render cycle, and the hardware timer is used to find the time passed since the last sample. This allows direct control of the rotation rate, so that it can be a constant value. 
+> The buttons and switches are sampled once per render cycle, and the hardware timer is used to find the time passed since the last sample. This allows direct control of the rotation rate, so that it can be a constant value.
 
 ### Rendering
-> Since there is only one rendered object, it will be pretty optimized. We simply trace points on the surface on the torus, and project them onto the viewplane.
+> Since our engine is only rendering one specific object, we can optimize it very specifically.
+> We simply trace points on the surface on the torus, and project them onto the viewplane.
 > A z-buffer is maintained, such that pixels that overwrite a previous pixel are only written if they are closer to the viewer than the previous point.
-> The render cycle loops indefinitely, as quickly as it can to output the best framerate possible.
-> The cycle will likely spend most of the time writing projecting points onto the frame and calculating the z-buffer. 
+> The cycle will likely spend most of the time writing projecting points onto the frame and updating the z-buffer. 
+
+### Donut Generation
+> To trace the outside of our donut, we simply sweep theta and phi in 2 planes.
+$$ (x,y,z) = (R_2 + R_1 \cos \theta, R_1 \sin \theta, -(R_2+R_1 \cos \theta)\sin \phi )$$
+> $R_2$ represents the major radius of the donut, while $R_1$ is the internal radius of the torus.
+
+> This generates a list of points on the surface on the donut, which we can then rotate by applying a quaternion rotation.
+> To rotate a point using quaternions, we convert the $x,y,z$ values to a quaternion $p=0 + x\hat i + y\hat j + z \hat k$.
+
+> The desired rotation axis $a,b,c$ and angle $\theta$ is expressed as a another quaternion $q=\cos(\theta / 2)( 0 + a\hat i + b\hat j + c\hat k)$.
+> To rotate the point, we multiply these quaternions together in the form
+$$p' = qpq^{-1}$$
+
+> Once all the points are rotated, we then project them onto our camera plane. This is a simple perspective calculation, where $K_1$ is the distance from the camera to the projection plane, and $K_2$ is the distance from the camera to the center of the donut.
+
+$$x' =\frac{x * K_1}{K_2 + z}$$
+$$y' = \frac{y * K_1}{K_2 + z}$$
+
+> We check the z buffer, which is initialized with all zeros. If the z position of the new pixel is closer to the screen than the previous, we overwrite the previous value. Otherwise, we ignore this point on the torus.
+> To streamline this operation, we use the value of $z^{-1}$, since 0 would be a distance of infinity and any large value corresponds to a closer pixel (unless it's negative).
+
+> Once the frame and z buffer are updated, we copy each pixel from the engine frame buffer to the hardware pixel frame buffer. On completion, the frame buffer is reset to all 0's (black).
 
 # Prototyping Plan
 
-For prototyping on our machines, we write the engine in a similar manner in Python and run that locally with `python honey-cruller`. This allows us to validate our work before implementing them on the DE10-SoC hardware. To run `honey-cruller`, install `numpy` and `cv2` packages and then run with the `python honey-cruller.py` command. 
+> Prototyping the renderer can be done in software, which we will do in Python. We use numpy and cv2 for a simple display and math tools which are rebuilt later on in C.
 
-This will bring up a windows application frame that has a donut (refer to Figure 1). 
+![Initialized torus](imgs/initial_frame.png)
 
-![Startup frame for honey-cruller](imgs/initial_frame.png)
+![Front view of torus after 90$^\circ$ rotation](imgs/front_view.png)
 
-To rotate / simulate the buttons, the `WASD` keys are used. Here is how the donut looks like rotated: (refer to Figure 2).
+> The DE10-SoC simulator at [https://cpulator.01xz.net/?sys=arm-de1soc](https://cpulator.01xz.net/?sys=arm-de1soc) contains the same VGA pixel buffer as on the DE10-Standard, and provides an easy way to experiment and test the software on simulated hardware.
+> Once we had fleshed out the rendering engine in python, we would first test the engine on simulated hardware before finally testing it on actual hardware.
 
-![Front view of donut after moving it](imgs/front_view.png)
+# Microcontroller
+> A suitable microcontroller, is the Nvidia Tegra line of embedded graphics processors. Another option is the AMD Radeon E9260 embedded graphics cards. These solutions are definitely quite proprietary however, and would likely require a large order number for access. More fleshed out development boards like the Nvidia Jetson line provide all the hardware needed on a single board, rather than single IC's that would need to be hobbled together.
 
-To stop the program we use `ctrl c`. 
+# Revised Software Design
+
+> We came accross two major issues in the software. The first was that the University version of the Intel FPGA Monitor Program allowed limited manipulation of the compiler flags. To use math.h, the `-lm` flag must be appended as the *last* flag to the compiler. However, we could not do that as the Monitor Program added its own flags to the end. As a result, we had to write our own functions for sine and cosine. We built a relatively inaccurate approximation using a Taylor series, mostly because it is good enough for our needs. 
+
+> We use the taylor series of the sine function down with 6 terms ($x^5$, although even powers of $x$ are multiplied by 0). This accurately covers $\sin(x)$ from $-\frac{\pi}{2} \to \frac{\pi}{2}$. To complete the domain of a full unit circle, we "wrap" around values from $\frac{\pi}{2} \to \pi$ and $-\pi \to -\frac{\pi}{2}$. This would not work for cosine, since the range of output values is $0\to 1$, not $-1 \to 1$ like it is for sine. To workaround this we forward the cosine function to just be $cos(x): x \to sin(x + \pi/2)$
+
+> We also ran into issues with our implementation of quaternions, which were not able to be fixed in a reasonable amount of time. We simply avoided this by using euler matricies to compute the rotations instead, which have some flaws but was easier to implement.
+> A 3D rotation in 3 axes $\alpha, \beta, \gamma$ on a point $p$ can be computed using the following matrix multiplication.
+
+$$p' = p \begin{bmatrix}
+   \cos\alpha & -\sin\alpha & 0 \\
+   \sin\alpha & \cos\alpha & 0 \\
+    0 & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+    \cos\beta & 0 & \sin\beta \\
+    0 & 1 & 0 \\
+    -\sin\beta & 0 & \cos\beta 
+\end{bmatrix}
+\begin{bmatrix}
+    1 & 0 & 0 \\
+    0 & \cos\gamma & -\sin\gamma \\
+    0 & \sin\gamma & \cos\gamma
+\end{bmatrix}
+$$
+
+> This computation is done in a simplified form, although it is much harder to read than this matrix form so we won't show it here.
+> We also exclude the second, $y$-axis matrix as its effect is negligable while increasing the comput time. The $y$-axis rotation simply rotates the donut on its major axis, which shouldn't even be visible if the resolution was high enough. Thus, as an optimization step we just don't compute this rotation at all.
