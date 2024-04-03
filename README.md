@@ -125,10 +125,9 @@ $$ \sin(x):  \begin{cases}
    \end{cases}
 $$
 
-![Graph of the Piecewise Sine Approximation](imgs/sine.png)
-
-
 $$cos(x): x \to sin(x + \pi/2)$$
+
+![Graph of the Piecewise Sine Approximation](imgs/sine.png)
 
 > We also ran into issues with our implementation of quaternions, which were not able to be fixed in a reasonable amount of time. We simply avoided this by using euler matricies to compute the rotations instead, which have some flaws but was easier to implement.
 > A 3D rotation in 3 axes $\alpha, \beta, \gamma$ on a point $p$ can be computed using the following matrix multiplication.
