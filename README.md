@@ -1,8 +1,9 @@
 ---
 title: "donuts!"
-subtitle: "ECE 3375 Final Project, 2024 "
+subtitle: "ECE 3375 Final Project, 2024"
 author: James Su, Shiv Patel, Khalid Zabalawi
-date: March 22, 2024
+date: April 8, 2024
+
 geometry: margin=1in
 output: pdf_document
 ---
@@ -61,28 +62,44 @@ output: pdf_document
 ### Inputs
 > The buttons and switches are sampled once per render cycle, and the hardware timer is used to find the time passed since the last sample. This allows direct control of the rotation rate, so that it can be a constant value.
 
-### Rendering
+### Frame Buffering
 > Since our engine is only rendering one specific object, we can optimize it very specifically.
 > We simply trace points on the surface on the torus, and project them onto the viewplane.
 > A z-buffer is maintained, such that pixels that overwrite a previous pixel are only written if they are closer to the viewer than the previous point.
 > The cycle will likely spend most of the time writing projecting points onto the frame and updating the z-buffer. 
 
 ### Donut Generation
-> To trace the outside of our donut, we simply sweep theta and phi in 2 planes.
-$$ (x,y,z) = (R_2 + R_1 \cos \theta, R_1 \sin \theta, -(R_2+R_1 \cos \theta)\sin \phi )$$
-> $R_2$ represents the major radius of the donut, while $R_1$ is the internal radius of the torus.
+> To render the donut, we simply trace points on its surface and project them onto a plane. 
+
+> The surface of a torus can be thought of as circle in a plane, rotated around some axis that
+> belongs in the same plane. Thus, we could express points on its surface using the following
+> expression and sweeping the angles $\theta$ and $\phi$.
+\begin{figure}[h]
+$$ (x,y,z) = (R_2 + R_1 \cos \theta,\quad R_1 \sin \theta, \quad -(R_2+R_1 \cos \theta)\sin \phi )$$
+\caption{Tracing the Surface of a Torus}
+\end{figure}
+> $R_1$ is the radius of the small circle in the $x-y$ plane used to generate the torus, while 
+> $R2$ is the radius it is positioned and rotated around the $y$ axis)
 
 > This generates a list of points on the surface on the donut, which we can then rotate by applying a quaternion rotation.
 > To rotate a point using quaternions, we convert the $x,y,z$ values to a quaternion $p=0 + x\hat i + y\hat j + z \hat k$.
 
 > The desired rotation axis $a,b,c$ and angle $\theta$ is expressed as a another quaternion $q=\cos(\theta / 2)( 0 + a\hat i + b\hat j + c\hat k)$.
 > To rotate the point, we multiply these quaternions together in the form
+\begin{figure}[h]
 $$p' = qpq^{-1}$$
+\caption{Rotations Using Quaternions}
+\end{figure}
 
-> Once all the points are rotated, we then project them onto our camera plane. This is a simple perspective calculation, where $K_1$ is the distance from the camera to the projection plane, and $K_2$ is the distance from the camera to the center of the donut.
+> Once all the points are rotated, we then project them onto our camera plane. This is a simple perspective calculation, 
+> where $K_1$ is the distance from the camera to the projection plane, and $K_2$ is the distance from the camera to the center of the donut.
+> We could project without a perspective calculation by using the $x-y$ points directly, but perspective adds to the immersiveness of the visualization immensely.
 
+\begin{figure}[h]
 $$x' =\frac{x * K_1}{K_2 + z}$$
 $$y' = \frac{y * K_1}{K_2 + z}$$
+\caption{Projections with Perspective}
+\end{figure}
 
 > We check the z buffer, which is initialized with all zeros. If the z position of the new pixel is closer to the screen than the previous, we overwrite the previous value. Otherwise, we ignore this point on the torus.
 > To streamline this operation, we use the value of $z^{-1}$, since 0 would be a distance of infinity and any large value corresponds to a closer pixel (unless it's negative).
@@ -93,45 +110,120 @@ $$y' = \frac{y * K_1}{K_2 + z}$$
 
 > Prototyping the renderer can be done in software, which we will do in Python. We use numpy and cv2 for a simple display and math tools which are rebuilt later on in C.
 
-![Initialized torus](imgs/initial_frame.png)
-
-![Front view of torus after 90$^\circ$ rotation](imgs/front_view.png)
+![Donut in the Python Engine](imgs/front_view.png)
 
 > The DE10-SoC simulator at [https://cpulator.01xz.net/?sys=arm-de1soc](https://cpulator.01xz.net/?sys=arm-de1soc) contains the same VGA pixel buffer as on the DE10-Standard, and provides an easy way to experiment and test the software on simulated hardware.
-> Once we had fleshed out the rendering engine in python, we would first test the engine on simulated hardware before finally testing it on actual hardware.
+> Once we had fleshed out the rendering engine in python, we would first test the engine on simulated hardware, then finally test it on actual hardware.
+
+> Our prototype will implement a very optimized render of a torus, that is rotated using the buttons. This allows us to maintain a comfortable frame rate on a single thread program.
+
+> A proper rendering algorithm like ray tracing or rasterization would very likely run way 
+> too slow on the DE10 without a lot of work into its optimization. 
+> To avoid dealing with this, we used an overly specific way to render the 
+> donut that isn't very useful for anything else, but is much faster and easier to compute.
+> In terms of softare, we will attempt to implement everything discussed in the previous section
+> However, our initial design is already a minimized prototype that should be feasible, and not a full project that we would build given more time.
 
 # Microcontroller
-> Suitable microcontrollers include the Nvidia Jetson, which contains a Nvidia Tegra GPU, and the Microchip PIC32MZ DA family of microcontrollers. The latter is significantly less powerful, and more suited to 2D rendering while the first is more capable of general floating point matrix calculations.
-> Our highly optimized 3D renderer that only draws a specific donut could probably be run on the latter with good performance, but a more generalized engine would likely require a more powerful graphics processor. 
-> One key difference is that the Jetson contains a discrete graphics processor, while the PIC32MZ DA contains an integrated graphics processor. The software would be significantly different on each as descrete processors have their own memory and I/O, while integrated processors share memory and I/O with the CPU.
+> Scalar processing, like the name suggests, operates on one scalar value at a time. 
+> On the other hand, a vector processor would be able to apply an operation on multiple values in one clock cycle. 
+> Graphics processing is most efficiently and optimally suitable for vector processors, 
+> of which include integrated and discrete forms. Integrated graphics processors share
+> system memory and I/O with the CPU, while discrete processors have their own. 
 
-> Due to the complexity in GPU architecture, there are a lot fewer microcontrollers with good parallel compute capability than those without. Embedded graphics processors like AMD's Phoenix line are only embedded into devices like the ROG Ally that are manufactured by large companies that can purchase a large minimum order.
+> Two microcontrollers representing each kind include the Nvidia Jetson, which contains a Nvidia Tegra GPU, and the Microchip PIC32MZ DA family of microcontrollers. 
+> The latter is significantly less powerful, and more suited to 2D rendering while the first is more capable of general floating point matrix calculations and 3D rendering.
+> Our highly optimized 3D renderer that only draws a specific donut could probably be run on the latter with good performance, but a more generalized and versatile engine would likely require a more powerful graphics processor. 
+> One key difference is that the Jetson contains a discrete graphics processor, while the PIC32MZ DA contains an integrated graphics processor.
 
-> The most widely available suitable microcontroller would then be the Nvidia Jetson line, as they are available as development SoC kits or standalone PCIe cards. 
-> The development SoC kits are well suited for our project, as it comes as a complete system with GPIO pins, USB ports, and an HDMI port in one compact system. 
+> The Nvidia Jetson comes with an quad core ARM A57 processor and 128-core Nvidia Maxwell graphics processor. 
+> In comparison, the PIC32MZ DA comes with a MIPS microActiv processor, which
+> is marketed as the loweest power CPU family available in the world.
+> It uses the MIPS instruction set, which is much more niche and less powerful than ARM but 
+> could be suitable in lower power, low requirement uses.
+> The Jetson on the other hand requires significantly more power, but also provides much more computational capability.
+
+> The Nvidia Jetson can be programmed using any of the widely available ARM and 
+> Nvidia development tools. 
+> The PIC32MZ DA has fewer tools like MPU Harmony development kit, but is still well supported by
+> its manufacturer.
+
+> Both microcontrollers have development kits with onboard I/O and interfaces that could be used to make development easier. 
+> These development kits come with GPIO pins that could allow us to attach buttons and switches easily, as well as display controller IC's that allow usage of those display ports.
+
+> Since our goal is 3D rendering, the Jetson likely has much more of the required compute power for the tasks we want to complete.
+> The PIC32MZ chip would probably require much more optimization, or 
+> run at a way lower framerate.
 
 # Revised Software Design
 
-> We came accross two major issues in the software. The first was that the University version of the Intel FPGA Monitor Program allowed limited manipulation of the compiler flags. To use math.h, the `-lm` flag must be appended as the *last* flag to the compiler. However, we could not do that as the Monitor Program added its own flags to the end. As a result, we had to write our own functions for sine and cosine. We built a relatively inaccurate approximation using a Taylor series, mostly because it is good enough for our needs. 
+> Given more time, one preferrable feature would be to add brightness to the pixels based on depth and direction.
+> The 3D nature of the donut is only visible because there is not enough computational power, so the wireframe gives away its depth.
+> If the device was powerful enough to render the whole donut, it would just look like a deforming blob.
 
-> We use the taylor series of the sine function up to $x^5$. This accurately covers $\sin(x)$ from $-\frac{\pi}{2} \to \frac{\pi}{2}$. To complete the domain of a full unit circle, we "wrap" around values from $\frac{\pi}{2} \to \pi$ and $-\pi \to -\frac{\pi}{2}$. This would not work for cosine, since the range of output values is $0\to 1$, not $-1 \to 1$ like it is for sine. To workaround this we forward the cosine function to just be the sine function with a quarter rotation offset.
+> Another change would be to parallelize the computations. We are only using a single thread, but
+> our program would massively benefit from using multiprocessing. Even the Cortex-A9 on
+> the DE10-Standard has two cores, which we could've used to improve the render rate. 
+> On a more suitable microprocessor, we would convert the calculations into sets of matrix 
+> calculations that can be run on a vector processor like the Nvidia Tegra.
 
+> Since the calculations are done frame by frame, polling would likely still be the better 
+> form of input in our prototype. Interrupts don't really serve a purpose here unless we add in
+> more objects and complexity. One possible use case could be a change in rendering settings, such as lighting, detail, aliasing, etc.
+
+> Our software is also very prematurely optimized, because the DE10-Standard is not very fast 
+> at rendering calculations. These optimizations make the render look detailed and the 
+> experience enjoyable, but there is a lack of extensibility in the program. 
+> A larger project could utilize more generalized techniques, such as rasterization while also
+> utilizing more relevant hardware.
+
+> A more generalized input space would also be desireable. Instead 
+> of only allowing rotations of a donut as input, a more useful input could be 
+> something like an implementation of the OpenGL API, so that the user could 
+> render anything they wanted to program. 
+
+# Results From Prototyping
+![Donut Viewed From Diagonally Above](./imgs/donut.png)
+
+> We were able to get an early version working, but some small changes had to be made.
+> Although the code worked in the simulator, there was an extra compile flag that 
+> could not be added to the free version of the Intel FPGA Monitor Program. 
+> To solve this issue, we created our own sine and cosine functions.
+> Rotations were also changed to be calculated using rotation angles instead of quaternions, 
+> due to some problems we weren't able to fix in time.
+
+![Donut Viewed Skewed](./imgs/side.png)
+
+> The University version of the Intel FPGA Monitor Program allowed limited manipulation of the compiler flags. To use math.h, the `-lm` flag must be appended as the *last* flag to the compiler, which is done by default in the simulator. 
+> However, we could not replicate it on the DE10-Standard as the Monitor Program added its own flags to the end of the command.
+> As a result, we had to write our own functions for sine and cosine. We built a relatively inaccurate approximation using a Taylor series, albeit good enough for our needs. 
+
+> We used the taylor series of the sine function up to $x^5$. This accurately 
+> covers $\sin(x)$ from $-\frac{\pi}{2} \to \frac{\pi}{2}$
+> \footnote{Although the domain reaches down to $-\frac{\pi}{2}$, we 
+> cut it off at $0$ because $0\to 2\pi$ is a much easier function domain to use
+> than $-\frac{\pi}{2}\to\frac{3\pi}{2}$}.
+> To complete the domain of a full unit circle, we "wrap" around values from $\frac{\pi}{2} \to \pi$ and $-\pi \to -\frac{\pi}{2}$. 
+> This would not work for cosine, since the range of output values is $0\to 1$, not $-1 \to 1$ like it is for sine. To workaround this we forward the cosine function to just be the sine function with a quarter rotation offset.
+
+\begin{figure}[h]
 $$taylorsin(x): x \to x - \frac{x^3}{3!} + \frac{x^5}{5!} $$
-
 $$ \sin(x):  \begin{cases} 
     x \to taylorsin(x)\quad \big ( 0 \leq x \leq \frac{\pi}{2} \big )\\
     x \to taylorsin(\pi - x)\quad \big ( \frac{\pi}{2} \leq x \leq \frac{3\pi}{2} \big )\\
     x \to taylorsin(x - 2\pi)\quad \big ( \frac{3\pi}{2} \leq x \leq 2\pi \big )\\
    \end{cases}
 $$
-
 $$cos(x): x \to sin(x + \pi/2)$$
+\caption{Approximated Functions of Sine and Cosine}
+\end{figure}
 
 ![Graph of the Piecewise Sine Approximation](imgs/sine.png)
 
 > We also ran into issues with our implementation of quaternions, which were not able to be fixed in a reasonable amount of time. We simply avoided this by using euler matricies to compute the rotations instead, which have some flaws but was easier to implement.
 > A 3D rotation in 3 axes $\alpha, \beta, \gamma$ on a point $p$ can be computed using the following matrix multiplication.
 
+\begin{figure}[h]
 $$p' = p \begin{bmatrix}
    \cos\alpha & -\sin\alpha & 0 \\
    \sin\alpha & \cos\alpha & 0 \\
@@ -148,10 +240,11 @@ $$p' = p \begin{bmatrix}
     0 & \sin\gamma & \cos\gamma
 \end{bmatrix}
 $$
+\caption{Matrix Rotations of a Point P in 3 Dimensions}
+\end{figure}
 
 > This computation is optimized into a simplified form, although it isn't really readable or clear what is going on so we won't show the equation here. 
 > We also exclude the second, $y$-axis matrix as its effect is negligable while increasing the compute time. The $y$-axis rotation simply rotates the donut in the flat plane, which shouldn't even be visible if the resolution was high enough. Thus, as an optimization step we just don't compute this rotation at all.
-
 
 # Source Code
 - All source code and version history is available at
