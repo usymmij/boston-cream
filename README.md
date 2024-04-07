@@ -12,7 +12,13 @@ output: pdf_document
 
 > 3D rendering is a common modern computing task, relevant in many different applications from animation to engineering. It consumes a significant number of clock cycles / computing time on generalized hardware, so it is often desirable to offload the task to a secondary, specialized microprocessor.
 > Graphics cards are microcontrollers that are purpose built to handle parallelizable tasks, including graphics rendering. It contains its own microprocessor, the GPU, as well as its own memory and I/O.
-> The DE10-Standard doesn't any specialized parallelization hardware, but we can still run the software on it, albeit slowly. 
+> The DE10-Standard doesn't any specialized parallelization hardware, but we can still run the software on it, albeit slowly.
+
+> Common uses of 3D rendering exist on workstations, but there are embedded applications as well.
+> Many modern vehicles come with screens, and it may be desirable to include some 3D rendering 
+> capability to that system. 
+> The goal of this project is not targeted towards a specific application, 
+> but more towards a generalized system that can be used in a wide range of scenarios.
 
 > In this project, we'll build a simple 3D graphics engine on the DE10-Standard. It will show a torus on a monitor using the VGA port, and provide controls to rotate the torus. 
 
@@ -166,8 +172,10 @@ $$y' = \frac{y * K_1}{K_2 + z}$$
 > the DE10-Standard has two cores, which we could've used to improve the render rate. 
 > On a more suitable microprocessor, we would convert the calculations into sets of matrix 
 > calculations that can be run on a vector processor like the Nvidia Tegra.
+> This could be done easily using something like DirectX, Vulkan, or OpenGL libraries. Given
+> that DirectX is proprietary and Vulkan is not cross platform, OpenGL suits our needs the best.
 
-> Since the calculations are done frame by frame, polling would likely still be the better 
+> Since our calculations are done frame by frame, polling would likely still be the better 
 > form of input in our prototype. Interrupts don't really serve a purpose here unless we add in
 > more objects and complexity. One possible use case could be a change in rendering settings, such as lighting, detail, aliasing, etc.
 
@@ -192,11 +200,13 @@ $$y' = \frac{y * K_1}{K_2 + z}$$
 > Rotations were also changed to be calculated using rotation angles instead of quaternions, 
 > due to some problems we weren't able to fix in time.
 
-![Donut Viewed Skewed](./imgs/side.png)
 
 > The University version of the Intel FPGA Monitor Program allowed limited manipulation of the compiler flags. To use math.h, the `-lm` flag must be appended as the *last* flag to the compiler, which is done by default in the simulator. 
 > However, we could not replicate it on the DE10-Standard as the Monitor Program added its own flags to the end of the command.
 > As a result, we had to write our own functions for sine and cosine. We built a relatively inaccurate approximation using a Taylor series, albeit good enough for our needs. 
+
+
+![Donut Viewed Skewed](./imgs/side.png)
 
 > We used the taylor series of the sine function up to $x^5$. This accurately 
 > covers $\sin(x)$ from $-\frac{\pi}{2} \to \frac{\pi}{2}$
@@ -227,7 +237,7 @@ $$cos(x): x \to sin(x + \pi/2)$$
 $$p' = p \begin{bmatrix}
    \cos\alpha & -\sin\alpha & 0 \\
    \sin\alpha & \cos\alpha & 0 \\
-    0 & 0 & 0
+    0 & 0 & 1
 \end{bmatrix}
 \begin{bmatrix}
     \cos\beta & 0 & \sin\beta \\
@@ -246,6 +256,12 @@ $$
 > This computation is optimized into a simplified form, although it isn't really readable or clear what is going on so we won't show the equation here. 
 > We also exclude the second, $y$-axis matrix as its effect is negligable while increasing the compute time. The $y$-axis rotation simply rotates the donut in the flat plane, which shouldn't even be visible if the resolution was high enough. Thus, as an optimization step we just don't compute this rotation at all.
 
+> If we had the hardware, we would rebuild the engine using OpenGL. This is 
+> because the current form of the engine would not be able to take advantage of the hardware
+> acceleration available. Furthermore, we would probably redesign the software to run in some 
+> operating system. It is unlikely that a client would want the engine to run at the kernel level
+> especially since they likely have some other software they want to combine it with. 
+
 # Source Code
 - All source code and version history is available at
 [https://github.com/usymmij/boston-cream](https://github.com/usymmij/boston-cream)
@@ -256,5 +272,54 @@ $$
 - Shiv was responsible for the input handling, converting the button presses into rotation vectors.
 - James was responsible for the rendering of the donut, and its rotation based off of the input vector.
 
+# Conclusion
+
+## Feasibility
+> The feasibility of building this project is definitely dependent on how much we want to do from scratch. 
+> Building the circuit on a PCB and soldering the chips on ourselves would likely require a lot more experience and team members than we have, but 
+> using one of the available SoCs is likely very doable.  
+> However, if we use an available SoC we would probably have to use a library like CUDA or OpenGL instead of building a driver ourselves.
+> This would make the project very feasible, and even easier to test without the hardware as any x86 system with a Nvidia GPU could be used. 
+> In this case, there is very little for us to do in hardware, as we only need the SoC, 
+> a monitor, and some peripherals that are all widely available.
+
+## Sustainability and Environmental Impact
+> Given the wide availability of the hardware we chose to use, it is much more sustainable than
+> choosing niche hardware and ordering custom development and transportation logistics. It is 
+> also very easy distribute the software to be used on hardware others already have, reducing
+> the impact of needing to manufacture more devices. 
+> Using widely available libraries on the common hardware architectures 
+> allow users to reduce waste and reuse hardware they already own. 
+
+> If we chose to use more niche hardware, it may require each user to buy new hardware and
+> generate a lot of waste that could be avoided. Furthermore, using mass produced architectures
+> allow us to take advantage of the production efficiences that have already been set in place, 
+> something that isn't possible if we chose to require our custom hardware. 
+
+## Lessons Learned
+> We learned a lot about different peripherals and computer graphics that were not taught in the 
+> course. To begin with, the VGA DAC was not covered at all, but its usage 
+> is not that any more difficult than the other peripherals covered in class. 
+> Since it operates using a pixel buffer, we just write to specific addresses to set the 
+> value of each corresponding pixel. 
+
+> We also learned a bit about the PCIe communication spec while researching the topic, although
+> we never implemented it in our prototype. PCIe differs from the other communication
+> specifications we have learned about as it is meant to offer a much higher bandwidth than 
+> something like I$^2$C.
+
+> In terms of graphics, we learned about some common techniques like frame buffering, 
+> z buffering, and rasterization. We were able to implement some naive forms of these techniques
+> and experiment with the effects of different parts of the process. 
+
+> We also learned how points can be rotated in 3D space in two different ways using
+> quaternions or matricies. We experimented with the effects of gimbal lock in the python 
+> version of the engine, and tried implementing the solution of using quaternions. Even though 
+> we couldn't get quaternion based rotation working, we were able to observe its effects and 
+> understand when it is or isn't necessary to worry about gimbal lock.
+
+> Overall, this project has been a cumulative exploration of many different topics we were 
+> interested about, and has had a satisfying result despite ending without completing 
+> all the features we wanted.
 
 
